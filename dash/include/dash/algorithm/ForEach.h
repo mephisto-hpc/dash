@@ -3,7 +3,8 @@
 
 #include <dash/algorithm/LocalRange.h>
 #include <dash/iterator/GlobIter.h>
-
+#include <dash/Execution.h>
+    
 #include <algorithm>
 
 
@@ -107,6 +108,93 @@ void for_each_with_index(
       auto element_it   = first + (gindex - first_offset);
       func(*(element_it.local()), gindex);
     }
+  }
+  team.barrier();
+}
+
+namespace detail {
+#ifdef __CUDACC__
+#define __CUDA_HOST_DEVICE __device__
+#else
+#define __CUDA_HOST_DEVICE
+#endif
+
+template <typename Func>
+struct ForEachKernel {
+  Func f;
+  ForEachKernel(Func f)
+    : f(f)
+  {
+  }
+
+  template <typename ElementT, typename SizeT, typename SharedT>
+  __CUDA_HOST_DEVICE void operator()(ElementT* base, SizeT offset, SharedT)
+  {
+    f(base[offset]);
+  }
+
+  template <
+      typename ElementT,
+      typename SizeT,
+      typename CoordT,
+      typename SharedT>
+  __CUDA_HOST_DEVICE void operator()(
+      ElementT* base, SizeT offset, CoordT coords, SharedT)
+  {
+    f(base[offset], coords);
+  }
+};
+}
+
+template <
+    typename ExecutionPolicy,
+    typename GlobInputIt,
+    class UnaryFunctionWithIndex>
+typename std::enable_if<
+    is_execution_policy<typename std::decay<ExecutionPolicy>::type>::value &&
+    has_executor<typename std::decay<ExecutionPolicy>::type>::value
+    >::type
+for_each_with_index(
+    ExecutionPolicy&& policy,
+    /// Iterator to the initial position in the sequence
+    const GlobInputIt& first,
+    /// Iterator to the final position in the sequence
+    const GlobInputIt& last,
+    /// Function to invoke on every index in the range
+    UnaryFunctionWithIndex func)
+{
+  using iterator_traits = dash::iterator_traits<GlobInputIt>;
+  static_assert(
+      iterator_traits::is_global_iterator::value,
+      "must be a global iterator");
+
+  /// Global iterators to local index range:
+  auto index_range  = dash::local_index_range(first, last);
+  auto local_range  = dash::local_range(first, last);
+  auto lbegin_index = index_range.begin;
+  auto lend_index   = index_range.end;
+  auto & team       = first.pattern().team();
+
+  auto executor = policy.executor();
+
+  if (lbegin_index != lend_index) {
+    // Pattern from global begin iterator:
+    auto & pattern    = first.pattern();
+
+    // The "shape" that is handed to the executor. Hand it the local index
+    // range and the pattern. From there everything else can be calculated
+    // inside the executor.
+    auto g_local_begin = (first - first.gpos()) + pattern.global(lbegin_index);
+    auto g_local_end = (last - last.gpos()) + pattern.global(lend_index);
+    auto range = std::make_pair(g_local_begin, g_local_end);
+
+    // This seems necessary to please nvcc. Deliv
+    detail::ForEachKernel<UnaryFunctionWithIndex> k(func);
+    executor.bulk_execute(
+        k,
+        range,
+        // for_each has no shared state
+        [] { });
   }
   team.barrier();
 }

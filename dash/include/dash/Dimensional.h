@@ -132,7 +132,8 @@ public:
   {
   }
 
-  constexpr Dimensional(const self_t & other) = default;
+  // TODO: find out why this bugs nvcc
+  /* constexpr Dimensional(const self_t & other) = default; */
   self_t & operator=(const self_t & other)    = default;
 
   /**

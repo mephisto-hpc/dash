@@ -7,8 +7,8 @@
 #include <iostream>
 #include <utility>
 #include <dash/Exception.h>
+#include <dash/LaunchPolicy.h>
 #include <dash/internal/Logging.h>
-
 
 namespace dash {
 

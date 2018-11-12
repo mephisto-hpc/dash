@@ -43,7 +43,7 @@ namespace dash {
  * \ingroup  DashAlgorithms
  */
 template <
-  typename ValueType,
+  class ValueType,
   class InputIt,
   class OutputIt >
 OutputIt copy(
@@ -52,23 +52,28 @@ OutputIt copy(
   OutputIt out_first);
 
 /**
- * Asynchronous variant of \c dash::copy.
+ * Asynchronous or deferred execution of \c dash::copy.
  * Copies the elements in the range, defined by \c [in_first, in_last), to
  * another range beginning at \c out_first.
  *
  * In terms of data distribution, source and destination ranges passed to
- * \c dash::copy can be local (\c *ValueType) or global (\c GlobIter<ValueType>).
+ * \c dash::copy can be
  *
- * For a blocking variant of \c dash::copy_async, see \c dash::copy.
+ * - local (\c *ValueType)
+ * - or global (\c GlobIter<ValueType>)
+ *
+ * For a blocking variant, see \c dash::copy without launch policy parameter.
  *
  * Example:
  *
  * \code
  *     // Start asynchronous copying
  *     dash::Future<T*> fut_dest_end =
- *       dash::copy_async(array_a.block(0).begin(),
- *                        array_a.block(0).end(),
- *                        local_array);
+ *       dash::copy(
+ *         dash::launch::async,
+ *         array_a.block(0).begin(),
+ *         array_a.block(0).end(),
+ *         local_array);
  *     // Overlapping computation here
  *     // ...
  *     // Wait for completion of asynchronous copying:
@@ -82,12 +87,14 @@ OutputIt copy(
  * \ingroup  DashAlgorithms
  */
 template <
-  typename ValueType,
+  class ExecutionPolicy,
+  class ValueType,
   class GlobInputIt >
-dash::Future<ValueType *> copy_async(
-  InputIt  in_first,
-  InputIt  in_last,
-  OutputIt out_first);
+dash::Future<ValueType *> copy(
+  ExecutionPolicy && policy,
+  InputIt            in_first,
+  InputIt            in_last,
+  OutputIt           out_first);
 
 #else // DOXYGEN
 
