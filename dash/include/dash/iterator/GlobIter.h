@@ -238,26 +238,7 @@ public:
    * \return  A global reference to the element at the iterator's position
    */
   explicit operator const_pointer() const {
-    DASH_LOG_TRACE_VAR("GlobIter.const_pointer()", _idx);
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    index_type idx    = _idx;
-    index_type offset = 0;
-    // Convert iterator position (_idx) to local index and unit.
-    if (_idx > _max_idx) {
-      // Global iterator pointing past the range indexed by the pattern
-      // which is the case for .end() iterators.
-      idx     = _max_idx;
-      offset += _idx - _max_idx;
-    }
-    // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(idx);
-    DASH_LOG_TRACE_VAR("GlobIter.const_pointer >", local_pos.unit);
-    DASH_LOG_TRACE_VAR("GlobIter.const_pointer >", local_pos.index);
-
-    auto const dart_pointer = _get_pointer_at(local_pos);
-    DASH_ASSERT_MSG(!DART_GPTR_ISNULL(dart_pointer), "dart pointer must not be null");
-    return const_pointer(dart_pointer) + offset;
+    return const_pointer(this->dart_gptr());
   }
 
   /**
@@ -268,30 +249,7 @@ public:
    * \return  A global reference to the element at the iterator's position
    */
   explicit operator pointer() {
-    if (_globmem == nullptr) {
-      return pointer{nullptr};
-    }
-
-    DASH_LOG_TRACE_VAR("GlobIter.pointer()", _idx);
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    index_type idx    = _idx;
-    index_type offset = 0;
-    // Convert iterator position (_idx) to local index and unit.
-    if (_idx > _max_idx) {
-      // Global iterator pointing past the range indexed by the pattern
-      // which is the case for .end() iterators.
-      idx     = _max_idx;
-      offset += _idx - _max_idx;
-    }
-    // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(idx);
-    DASH_LOG_TRACE_VAR("GlobIter.pointer >", local_pos.unit);
-    DASH_LOG_TRACE_VAR("GlobIter.pointer >", local_pos.index);
-
-    auto const dart_pointer = _get_pointer_at(local_pos);
-    DASH_ASSERT_MSG(!DART_GPTR_ISNULL(dart_pointer), "dart pointer must not be null");
-    return pointer(dart_pointer) + offset;
+    return pointer(this->dart_gptr());
   }
 
   /**
@@ -305,32 +263,24 @@ public:
     if (_globmem == nullptr) {
       return DART_GPTR_NULL;
     }
+    else if (_idx > _max_idx) {
+      // Global iterator pointing past the range indexed by the pattern
+      // which is the case for .end() iterators.
+      return static_cast<dart_gptr_t>(_globmem->end());
+    }
 
     DASH_LOG_TRACE_VAR("GlobIter.dart_gptr()", _idx);
     typedef typename pattern_type::local_index_t
       local_pos_t;
-    index_type idx    = _idx;
-    index_type offset = 0;
-    // Convert iterator position (_idx) to local index and unit.
-    if (_idx > _max_idx) {
-      // Global iterator pointing past the range indexed by the pattern
-      // which is the case for .end() iterators.
-      idx     = _max_idx;
-      offset += _idx - _max_idx;
-      DASH_LOG_TRACE_VAR("GlobIter.dart_gptr", _max_idx);
-      DASH_LOG_TRACE_VAR("GlobIter.dart_gptr", idx);
-      DASH_LOG_TRACE_VAR("GlobIter.dart_gptr", offset);
-    }
+
     // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(idx);
+    local_pos_t local_pos = _pattern->local(_idx);
     DASH_LOG_TRACE("GlobIter.dart_gptr",
                    "unit:",        local_pos.unit,
                    "local index:", local_pos.index);
     auto const dart_pointer = _get_pointer_at(local_pos);
     DASH_ASSERT_MSG(!DART_GPTR_ISNULL(dart_pointer), "dart pointer must not be null");
-    auto gptr = pointer(dart_pointer);
-    DASH_LOG_TRACE_VAR("GlobIter.dart_gptr >", gptr);
-    return (gptr + offset).dart_gptr();
+    return dart_pointer;
   }
 
   /**
@@ -340,7 +290,7 @@ public:
    */
   inline reference operator*()
   {
-    return this->operator[](_idx);
+    return reference{this->dart_gptr()};
   }
 
   /**
@@ -350,7 +300,7 @@ public:
    */
   inline const_reference operator*() const
   {
-    return this->operator[](_idx);
+    return const_reference{this->dart_gptr()};
   }
 
   /**
@@ -361,16 +311,9 @@ public:
     /// The global position of the element
     index_type g_index)
   {
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(g_index);
-    // Global reference to element at given position:
-    DASH_LOG_TRACE("GlobIter.[]",
-                   "(index:", g_index, ") ->",
-                   "(unit:", local_pos.unit, " index:", local_pos.index, ")");
-    auto const dart_ptr = _get_pointer_at(local_pos);
-    return reference(dart_ptr);
+    auto p = *this;
+    p += g_index;
+    return reference(p.dart_gptr());
   }
 
   /**
@@ -381,16 +324,9 @@ public:
     /// The global position of the element
     index_type g_index) const
   {
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(g_index);
-    // Global reference to element at given position:
-    DASH_LOG_TRACE("GlobIter.[]",
-                   "(index:", g_index, ") ->",
-                   "(unit:", local_pos.unit, " index:", local_pos.index, ")");
-    auto const dart_ptr = _get_pointer_at(local_pos);
-    return const_reference(dart_ptr);
+    auto p = *this;
+    p += g_index;
+    return const_reference(p.dart_gptr());
   }
 
   /**
@@ -407,37 +343,10 @@ public:
    */
   local_type local() const
   {
-    /*
-     *
-     * TODO: Evaluate alternative:
-     *         auto l_idx_this = _container.pattern().local(this->pos());
-     *         return (l_idx_this.unit == _myid
-     *                 ? _lbegin + l_idx_this
-     *                 : nullptr
-     *                );
-     */
-    DASH_LOG_TRACE_VAR("GlobIter.local=()", _idx);
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    index_type idx    = _idx;
-    index_type offset = 0;
-    DASH_LOG_TRACE_VAR("GlobIter.local=", _max_idx);
-    // Convert iterator position (_idx) to local index and unit.
-    if (_idx > _max_idx) {
-      // Global iterator pointing past the range indexed by the pattern
-      // which is the case for .end() iterators.
-      idx     = _max_idx;
-      offset += _idx - _max_idx;
-    }
-    DASH_LOG_TRACE_VAR("GlobIter.local=", idx);
-    DASH_LOG_TRACE_VAR("GlobIter.local=", offset);
-    // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(idx);
-    DASH_LOG_TRACE_VAR("GlobIter.local= >", local_pos.unit);
-    DASH_LOG_TRACE_VAR("GlobIter.local= >", local_pos.index);
 
-    if (_globmem->team().myid() != local_pos.unit) {
-      // Iterator position does not point to local element
+    auto local_pos = lpos();
+
+    if (local_pos.unit != _pattern->team().myid()) {
       return nullptr;
     }
 
@@ -446,35 +355,37 @@ public:
 
     DASH_ASSERT(lbegin);
 
-    return std::next(lbegin, local_pos.index + offset);
+    return std::next(lbegin, local_pos.index);
   }
 
   /**
    * Unit and local offset at the iterator's position.
    */
-  inline typename pattern_type::local_index_t lpos() const
+  auto lpos() const
   {
     DASH_LOG_TRACE_VAR("GlobIter.lpos()", _idx);
-    typedef typename pattern_type::local_index_t
-      local_pos_t;
-    index_type idx    = _idx;
+
+    index_type idx = _idx;
     index_type offset = 0;
+
     // Convert iterator position (_idx) to local index and unit.
-    if (_idx > _max_idx) {
-      // Global iterator pointing past the range indexed by the pattern
-      // which is the case for .end() iterators.
+    if (idx > _max_idx) {
       idx    = _max_idx;
       offset = _idx - _max_idx;
-      DASH_LOG_TRACE_VAR("GlobIter.lpos", _max_idx);
-      DASH_LOG_TRACE_VAR("GlobIter.lpos", idx);
-      DASH_LOG_TRACE_VAR("GlobIter.lpos", offset);
+      DASH_ASSERT_EQ(offset, 1, "invalid index");
     }
     // Global index to local index and unit:
-    local_pos_t local_pos = _pattern->local(idx);
+    auto local_pos = _pattern->local(idx);
+    // Add the offset
     local_pos.index += offset;
-    DASH_LOG_TRACE("GlobIter.lpos >",
-                   "unit:",        local_pos.unit,
-                   "local index:", local_pos.index);
+
+    DASH_LOG_TRACE(
+        "GlobIter.lpos >",
+        "unit:",
+        local_pos.unit,
+        "local index:",
+        local_pos.index);
+
     return local_pos;
   }
 
@@ -711,7 +622,5 @@ std::ostream & operator<<(
 }
 
 } // namespace dash
-
-#include <dash/iterator/GlobViewIter.h>
 
 #endif // DASH__GLOB_ITER_H__INCLUDED

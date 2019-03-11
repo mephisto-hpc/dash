@@ -425,6 +425,10 @@ public:
     m_dart_pointer.unitid = unit_id.id;
   }
 
+  constexpr auto get_unit() const noexcept {
+    return team_unit_t{m_dart_pointer.unitid};
+  }
+
   /**
    * Check whether the global pointer is in the local
    * address space the pointer's associated unit.
