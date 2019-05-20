@@ -96,7 +96,7 @@ public:
     return this->local_block_local(block_index);
   }
 
-  FN_HOST_ACC block_range blocks_local_for_entity(Entity &entity)
+  FN_HOST_ACC block_range blocks_local_for_entity(Entity &entity) const
   {
     return block_range{this, &entity};
   }
@@ -109,6 +109,7 @@ public:
     return entity_blocks + add;
   }
 
+#if 0
   size_t lbegin(Entity entity)
   {
     auto first_blockspec = this->block_local_for_entity(entity, 0);
@@ -124,6 +125,7 @@ public:
         this->block_local_for_entity(entity, total_local_blocks - 1);
     return this->local_at(last_blockspec.offsets()) + last_blockspec.size();
   }
+#endif
 
 private:
   size_t _local_blocks = 1;
