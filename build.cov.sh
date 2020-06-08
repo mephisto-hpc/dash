@@ -5,6 +5,7 @@ BUILD_DIR=./build.cov
 FORCE_BUILD=false
 if [ "$1" = "-f" ]; then
   FORCE_BUILD=true
+  shift
 fi
 
 await_confirm() {
@@ -17,7 +18,7 @@ await_confirm() {
 
 exit_message() {
   echo "--------------------------------------------------------"
-  echo "Done. To run code coverage measurement, run make coverage in $BUILD_DIR"
+  echo "Done. To run code coverage measurement, run: make -C $BUILD_DIR coverage"
 }
 
 if [ "${PAPI_HOME}" = "" ]; then
@@ -66,7 +67,6 @@ rm -Rf $BUILD_DIR/*
                         \
                         -DENABLE_SHARED_WINDOWS=ON \
                         -DENABLE_DYNAMIC_WINDOWS=ON \
-                        -DENABLE_UNIFIED_MEMORY_MODEL=ON \
                         -DENABLE_DEFAULT_INDEX_TYPE_LONG=ON \
                         \
                         -DENABLE_LOGGING=ON \
@@ -91,7 +91,8 @@ rm -Rf $BUILD_DIR/*
                         \
                         -DIPM_PREFIX=${IPM_HOME} \
                         -DPAPI_PREFIX=${PAPI_HOME} \
-                        ../ && \
- await_confirm && \
- make -j 4) && \
+                        "$@" \
+                        ../ &&
+ await_confirm &&
+ make -j 4) &&
 exit_message

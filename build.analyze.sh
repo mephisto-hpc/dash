@@ -40,6 +40,7 @@ which $BUILD_WRAPPER ||
 FORCE_BUILD=false
 if [ "$1" = "-f" ]; then
   FORCE_BUILD=true
+  shift
 fi
 
 await_confirm() {
@@ -52,7 +53,7 @@ await_confirm() {
 
 exit_message() {
   echo "--------------------------------------------------------"
-  echo "Done. To install DASH, run    make install    in $BUILD_DIR"
+  echo "Done. To install DASH, run:   make -C $BUILD_DIR install"
 }
 
 if [ "${PAPI_HOME}" = "" ]; then
@@ -104,7 +105,6 @@ mkdir -p $BUILD_DIR/$REPORT_DIR
                         -DENABLE_ASSERTIONS=ON \
                         \
                         -DENABLE_SHARED_WINDOWS=ON \
-                        -DENABLE_UNIFIED_MEMORY_MODEL=ON \
                         -DENABLE_DYNAMIC_WINDOWS=ON \
                         -DENABLE_DEFAULT_INDEX_TYPE_LONG=ON \
                         \
@@ -132,9 +132,10 @@ mkdir -p $BUILD_DIR/$REPORT_DIR
                         -DPAPI_PREFIX=${PAPI_HOME} \
                         \
                         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                        ../ && \
- await_confirm && \
- $BUILD_WRAPPER $SCANBUILD_OPTS make) && \
- (cp $BUILD_DIR/compile_commands.json .) && \
+                        "$@" \
+                        ../ &&
+ await_confirm &&
+ $BUILD_WRAPPER $SCANBUILD_OPTS make) &&
+ (cp $BUILD_DIR/compile_commands.json .) &&
 exit_message
 

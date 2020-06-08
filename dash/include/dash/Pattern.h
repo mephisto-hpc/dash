@@ -48,7 +48,8 @@ namespace dash {
  * <tt>index</tt>           | <tt>global</tt>            | <tt>unit u, index li</tt>       | Local offset <i>li</i> of unit <i>u</i> to global index                                                    |
  * <tt>index</tt>           | <tt>global</tt>            | <tt>index li</tt>               | Local offset <i>li</i> of active unit to global index                                                      |
  * <b>blocks</b>            | &nbsp;                     | &nbsp;                          | &nbsp;                                                                                                     |
- * <tt>size[d]</tt>         | <tt>blockspec</tt>         | &nbsp;                          | Number of blocks in all dimensions.                                                                        |
+ * <tt>size[d]</tt>         | <tt>blockspec</tt>         | &nbsp;                          | Number of blocks in all dimensions.                                          |
+ * <tt>size[d]</tt>         | <tt>local_blockspec</tt>   | &nbsp;                          | Number of local blocks in all dimensions.                                                                          |
  * <tt>index</tt>           | <tt>block_at</tt>          | <tt>index[d] gp</tt>            | Global index of block at global coordinates <i>gp</i>                                                      |
  * <tt>viewspec</tt>        | <tt>block</tt>             | <tt>index gbi</tt>              | Offset and extent in global cartesian space of block at global block index <i>gbi</i>                      |
  * <tt>viewspec</tt>        | <tt>local_block</tt>       | <tt>index lbi</tt>              | Offset and extent in global cartesian space of block at local block index <i>lbi</i>                       |
@@ -564,21 +565,6 @@ public:
   const std::array<size_type, NumDimensions> & extents() const;
 
   /**
-   * Cartesian index space representing the underlying memory model of the
-   * pattern.
-   *
-   * \see DashPatternConcept
-   */
-  const MemoryLayout_t & memory_layout() const;
-
-  /**
-   * Cartesian index space representing the underlying local memory model
-   * of this pattern for the calling unit.
-   * Not part of DASH Pattern concept.
-   */
-  const LocalMemoryLayout_t & local_memory_layout() const;
-
-  /**
    * Cartesian arrangement of the Team containing the units to which this
    * pattern's elements are mapped.
    *
@@ -594,6 +580,16 @@ public:
    */
   std::array<index_type, NumDimensions> coords(
     index_type index) const;
+
+  /**
+   * Convert given global linear offset (index) to global cartesian
+   * coordinates using viewspec.
+   *
+   * \see DashPatternConcept
+   */
+  std::array<index_type, NumDimensions> coords(
+    index_type         index,
+    const ViewSpec_t & viewspec) const;
 
   /**
    * Memory order followed by the pattern.

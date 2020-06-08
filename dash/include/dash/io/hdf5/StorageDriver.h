@@ -6,7 +6,7 @@
 #ifdef DASH_ENABLE_HDF5
 
 #ifndef DASH_MPI_IMPL_ID
-#pragma error "HDF5 module requires dart-mpi"
+#error "HDF5 module requires dart-mpi"
 #endif
 
 #include <dash/Exception.h>
@@ -361,9 +361,9 @@ class StoreHDF {
       }
     } else {
       // Auto deduce pattern
-      const pattern_t pattern(dash::SizeSpec<ndim>(size_extents),
+      const pattern_t pattern(dash::SizeSpec<ndim, typename pattern_t::size_type>(size_extents),
                               dash::DistributionSpec<ndim>(),
-                              dash::TeamSpec<ndim>(), dash::Team::All());
+                              dash::TeamSpec<ndim, typename pattern_t::index_type>(), dash::Team::All());
 
       matrix.allocate(pattern);
     }
@@ -698,9 +698,9 @@ class StoreHDF {
     }
     DASH_LOG_DEBUG("Created pattern according to metadata");
 
-    const pattern_t pattern(dash::SizeSpec<ndim>(size_extents),
+    const pattern_t pattern(dash::SizeSpec<ndim, typename pattern_t::size_type>(size_extents),
                             dash::DistributionSpec<ndim>(dist_extents),
-                            dash::TeamSpec<ndim>(team_extents),
+                            dash::TeamSpec<ndim, typename pattern_t::index_type>(team_extents),
                             dash::Team::All());
 
     // Allocate DASH Matrix
